@@ -25,11 +25,23 @@ class GrafanaOncall extends NotificationProvider {
                 };
                 await axios.post(notification.GrafanaOncallURL, grafanaupdata, config);
                 return okMsg;
-            } else if (heartbeatJSON["status"] === DOWN) {
+            }
+
+            // Build labels from monitor tags for both alerting and recovery payloads
+            let labels = {};
+            if (monitorJSON?.tags?.length > 0) {
+                monitorJSON.tags.forEach((tag) => {
+                    labels[tag["name"]] = tag["value"] || "";
+                });
+            }
+
+            if (heartbeatJSON["status"] === DOWN) {
                 let grafanadowndata = {
                     title: monitorJSON["name"] + " is down",
                     message: heartbeatJSON["msg"],
                     state: "alerting",
+                    alert_uid: String(monitorJSON["id"]),
+                    labels,
                 };
                 await axios.post(notification.GrafanaOncallURL, grafanadowndata, config);
                 return okMsg;
@@ -38,6 +50,8 @@ class GrafanaOncall extends NotificationProvider {
                     title: monitorJSON["name"] + " is up",
                     message: heartbeatJSON["msg"],
                     state: "ok",
+                    alert_uid: String(monitorJSON["id"]),
+                    labels,
                 };
                 await axios.post(notification.GrafanaOncallURL, grafanaupdata, config);
                 return okMsg;
