@@ -27,16 +27,16 @@ class GrafanaOncall extends NotificationProvider {
                 return okMsg;
             } else if (heartbeatJSON["status"] === DOWN) {
                 let grafanadowndata = {
-                    title: monitorJSON["name"] + " is down",
-                    message: heartbeatJSON["msg"],
+                    title: monitorJSON["name"],
+                    message: monitorJSON["name"] + " is down - " + heartbeatJSON["msg"],
                     state: "alerting",
                 };
                 await axios.post(notification.GrafanaOncallURL, grafanadowndata, config);
                 return okMsg;
             } else if (heartbeatJSON["status"] === UP) {
                 let grafanaupdata = {
-                    title: monitorJSON["name"] + " is up",
-                    message: heartbeatJSON["msg"],
+                    title: monitorJSON["name"],
+                    message: monitorJSON["name"] + " is up - " + heartbeatJSON["msg"],
                     state: "ok",
                 };
                 await axios.post(notification.GrafanaOncallURL, grafanaupdata, config);
