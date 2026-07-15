@@ -33,6 +33,8 @@ tsconfig.json
 /extra/healthcheck
 /extra/exe-builder
 /extra/uptime-kuma-push
+/extra/healthcheck.go
+/extra/push-examples/go
 
 # Comment the following line if you want to rebuild the healthcheck binary
 /extra/healthcheck-armv7
