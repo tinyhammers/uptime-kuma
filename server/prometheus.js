@@ -11,6 +11,7 @@ let monitorStatus = null;
 
 class Prometheus {
     monitorLabelValues = {};
+    static registeredTagNames = new Set();
 
     /**
      * @param {object} monitor Monitor object to monitor
@@ -48,6 +49,8 @@ class Prometheus {
                 })
                 .sort(this.sortTags)
         );
+
+        Prometheus.registeredTagNames = tags;
 
         const commonLabels = [
             ...tags,
@@ -117,8 +120,8 @@ class Prometheus {
         let mappedTags = {};
         tags.forEach((tag) => {
             let sanitizedTag = Prometheus.sanitizeForPrometheus(tag.name);
-            if (sanitizedTag === "") {
-                return; // Skip empty tag names
+            if (sanitizedTag === "" || !Prometheus.registeredTagNames.has(sanitizedTag)) {
+                return; // Skip empty or tags added after Prometheus was initialised
             }
 
             if (mappedTags[sanitizedTag] === undefined) {

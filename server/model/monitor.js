@@ -1002,7 +1002,7 @@ class Monitor extends BeanModel {
 
                 if (Monitor.isImportantForNotification(isFirstBeat, previousBeat?.status, bean.status)) {
                     log.debug("monitor", `[${this.name}] sendNotification`);
-                    await Monitor.sendNotification(isFirstBeat, this, bean);
+                    await Monitor.sendNotification(isFirstBeat, this, bean, previousBeat?.status);
                 } else {
                     log.debug(
                         "monitor",
@@ -1483,8 +1483,8 @@ class Monitor extends BeanModel {
      * @param {import("./heartbeat")} bean Status information about monitor
      * @returns {Promise<void>}
      */
-    static async sendNotification(isFirstBeat, monitor, bean) {
-        if (!isFirstBeat || bean.status === DOWN) {
+    static async sendNotification(isFirstBeat, monitor, bean, previousBeatStatus = null) {
+        if (!isFirstBeat || bean.status === DOWN || (bean.status === UP && previousBeatStatus === DOWN)) {
             const notificationList = await Monitor.getNotificationList(monitor);
 
             let text;
