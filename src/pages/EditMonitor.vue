@@ -60,6 +60,8 @@
                                         <option value="real-browser">
                                             HTTP(s) - Browser Engine (Chrome/Chromium) (Beta)
                                         </option>
+                                        <option value="websocket-upgrade">Websocket Upgrade</option>
+                                        <option value="sftp">SFTP</option>
                                     </optgroup>
 
                                     <optgroup :label="$t('monitorTypeSpecial')">
@@ -84,6 +86,7 @@
                                         <option value="json-query">HTTP(s) - {{ $t("Json Query") }}</option>
                                         <option value="kafka-producer">Kafka Producer</option>
                                         <option value="mqtt">MQTT</option>
+                                        <option value="ntp">NTP</option>
                                         <option value="rabbitmq">RabbitMQ</option>
                                         <option v-if="!$root.info.isContainer" value="sip-options">
                                             SIP Options Ping
@@ -475,7 +478,7 @@
                             </template>
 
                             <!-- Hostname -->
-                            <!-- TCP Port / Ping / DNS / Steam / MQTT / Radius / Tailscale Ping / SNMP / SMTP / SIP Options only -->
+                            <!-- TCP Port / Ping / DNS / Steam / MQTT / Radius / Tailscale Ping / SNMP / SMTP / SIP Options / NTP only -->
                             <div
                                 v-if="
                                     monitor.type === 'port' ||
@@ -488,7 +491,9 @@
                                     monitor.type === 'tailscale-ping' ||
                                     monitor.type === 'smtp' ||
                                     monitor.type === 'snmp' ||
-                                    monitor.type === 'sip-options'
+                                    monitor.type === 'sip-options' ||
+                                    monitor.type === 'sftp' ||
+                                    monitor.type === 'ntp'
                                 "
                                 class="my-3"
                             >
@@ -689,7 +694,7 @@
                             </template>
 
                             <!-- Port -->
-                            <!-- For TCP Port / Steam / MQTT / Radius Type / SNMP / SIP Options -->
+                            <!-- For TCP Port / Steam / MQTT / Radius Type / SNMP / SIP Options / NTP -->
                             <div
                                 v-if="
                                     monitor.type === 'port' ||
@@ -700,6 +705,8 @@
                                     monitor.type === 'smtp' ||
                                     monitor.type === 'snmp' ||
                                     monitor.type === 'sip-options' ||
+                                    monitor.type === 'sftp' ||
+                                    monitor.type === 'ntp' ||
                                     (monitor.type === 'globalping' &&
                                         monitor.subtype === 'ping' &&
                                         monitor.protocol === 'TCP')
@@ -814,6 +821,86 @@
                                 </select>
                             </div>
 
+                            <!-- SFTP Monitor Fields -->
+                            <template v-if="monitor.type === 'sftp'">
+                                <div class="my-3">
+                                    <label for="ssh_username" class="form-label">{{ $t("Username") }}</label>
+                                    <input
+                                        id="ssh_username"
+                                        v-model="monitor.sshUsername"
+                                        type="text"
+                                        class="form-control"
+                                        required
+                                        autocomplete="username"
+                                    />
+                                </div>
+
+                                <!-- Auth Method -->
+                                <div class="my-3">
+                                    <label for="ssh_auth_method" class="form-label">
+                                        {{ $t("Authentication Method") }}
+                                    </label>
+                                    <select id="ssh_auth_method" v-model="monitor.sshAuthMethod" class="form-select">
+                                        <option value="password">{{ $t("Password") }}</option>
+                                        <option value="privateKey">{{ $t("SSH Private Key") }}</option>
+                                    </select>
+                                </div>
+
+                                <!-- Password auth -->
+                                <div v-if="monitor.sshAuthMethod !== 'privateKey'" class="my-3">
+                                    <label for="ssh_password" class="form-label">{{ $t("Password") }}</label>
+                                    <HiddenInput
+                                        id="ssh_password"
+                                        v-model="monitor.sshPassword"
+                                        autocomplete="current-password"
+                                        required="true"
+                                    ></HiddenInput>
+                                </div>
+
+                                <!-- SSH Key auth -->
+                                <template v-if="monitor.sshAuthMethod === 'privateKey'">
+                                    <div class="my-3">
+                                        <label for="ssh_private_key" class="form-label">
+                                            {{ $t("SSH Private Key") }}
+                                        </label>
+                                        <textarea
+                                            id="ssh_private_key"
+                                            v-model="monitor.sshPrivateKey"
+                                            class="form-control"
+                                            rows="6"
+                                            :placeholder="$t('sshPrivateKeyPlaceholder')"
+                                            required
+                                            autocomplete="off"
+                                        ></textarea>
+                                        <div class="form-text">{{ $t("sshPrivateKeyHelpText") }}</div>
+                                    </div>
+                                    <div class="my-3">
+                                        <label for="ssh_passphrase" class="form-label">
+                                            {{ $t("Passphrase") }}
+                                            <span class="text-muted small">({{ $t("optional") }})</span>
+                                        </label>
+                                        <HiddenInput
+                                            id="ssh_passphrase"
+                                            v-model="monitor.sshPassphrase"
+                                            autocomplete="off"
+                                        ></HiddenInput>
+                                        <div class="form-text">{{ $t("sshPassphraseHelpText") }}</div>
+                                    </div>
+                                </template>
+
+                                <div class="my-3">
+                                    <label for="sftp_path" class="form-label">{{ $t("SFTP Path to Check") }}</label>
+                                    <input
+                                        id="sftp_path"
+                                        v-model="monitor.sftpPath"
+                                        type="text"
+                                        class="form-control"
+                                        placeholder="/path/to/check (optional)"
+                                    />
+                                    <div class="form-text">{{ $t("sftpPathHelpText") }}</div>
+                                </div>
+                            </template>
+
                             <!-- Expected TLS Alert (for TCP monitor mTLS verification) -->
                             <template v-if="monitor.type === 'port'">
                                 <div class="my-3">
@@ -852,6 +939,63 @@
                                             </a>
                                         </template>
                                     </i18n-t>
+                                </div>
+                            </template>
+
+                            <!-- NTP Configuration -->
+                            <template v-if="monitor.type === 'ntp'">
+                                <h4 class="mt-4">{{ $t("ntpThresholdsTitle") }}</h4>
+
+                                <div class="my-3">
+                                    <label for="ntp-stratum-threshold" class="form-label">
+                                        {{ $t("ntpStratumThreshold") }}
+                                    </label>
+                                    <input
+                                        id="ntp-stratum-threshold"
+                                        v-model.number="monitor.ntpStratumThreshold"
+                                        type="number"
+                                        class="form-control"
+                                        min="1"
+                                        max="15"
+                                        placeholder="5"
+                                    />
+                                    <div class="form-text">
+                                        {{ $t("ntpStratumThresholdHelp") }}
+                                    </div>
+                                </div>
+
+                                <div class="my-3">
+                                    <label for="ntp-offset-threshold" class="form-label">
+                                        {{ $t("ntpOffsetThreshold") }}
+                                    </label>
+                                    <input
+                                        id="ntp-offset-threshold"
+                                        v-model.number="monitor.ntpTimeOffsetThreshold"
+                                        type="number"
+                                        class="form-control"
+                                        min="1"
+                                        placeholder="1000"
+                                    />
+                                    <div class="form-text">
+                                        {{ $t("ntpOffsetThresholdHelp") }}
+                                    </div>
+                                </div>
+
+                                <div class="my-3">
+                                    <label for="ntp-dispersion-threshold" class="form-label">
+                                        {{ $t("ntpDispersionThreshold") }}
+                                    </label>
+                                    <input
+                                        id="ntp-dispersion-threshold"
+                                        v-model.number="monitor.ntpRootDispersionThreshold"
+                                        type="number"
+                                        class="form-control"
+                                        min="1"
+                                        placeholder="500"
+                                    />
+                                    <div class="form-text">
+                                        {{ $t("ntpDispersionThresholdHelp") }}
+                                    </div>
                                 </div>
                             </template>
 
@@ -1491,7 +1635,6 @@
                                     class="form-control"
                                     required
                                     :min="minInterval"
-                                    :max="maxInterval"
                                     step="1"
                                     @focus="lowIntervalConfirmation.editedValue = true"
                                     @blur="finishUpdateInterval"
@@ -1878,7 +2021,7 @@
                                     class="form-control"
                                     required
                                     min="0"
-                                    max="300"
+                                    :max="pingPerRequestTimeoutMax"
                                     step="1"
                                 />
                                 <div class="form-text">
@@ -1905,6 +2048,7 @@
                                         :preselect-first="false"
                                         :max-height="600"
                                         :taggable="true"
+                                        @tag="addAcceptedStatusCode"
                                     ></VueMultiselect>
 
                                     <div class="form-text">
@@ -2049,6 +2193,7 @@
                                         :preselect-first="false"
                                         :max-height="600"
                                         :taggable="true"
+                                        @tag="addAcceptedStatusCode"
                                     ></VueMultiselect>
 
                                     <div class="form-text">
@@ -2096,6 +2241,7 @@
                                     :preselect-first="false"
                                     :max-height="600"
                                     :taggable="true"
+                                    @tag="addAcceptedStatusCode"
                                 ></VueMultiselect>
 
                                 <div class="form-text">
@@ -3181,8 +3327,9 @@ import ProxyDialog from "../components/ProxyDialog.vue";
 import TagsManager from "../components/TagsManager.vue";
 import {
     genSecret,
-    MAX_INTERVAL_SECOND,
     MIN_INTERVAL_SECOND,
+    PING_GLOBAL_TIMEOUT_MAX,
+    PING_PER_REQUEST_TIMEOUT_MAX,
     sleep,
     TYPES_WITH_DOMAIN_EXPIRY_SUPPORT_VIA_FIELD,
 } from "../util.ts";
@@ -3266,6 +3413,10 @@ const monitorDefaults = {
     rabbitmqPassword: "",
     conditions: [],
     system_service_name: "",
+    sshAuthMethod: "password",
+    ntpStratumThreshold: 5,
+    ntpTimeOffsetThreshold: 1000,
+    ntpRootDispersionThreshold: 500,
 };
 
 export default {
@@ -3287,7 +3438,7 @@ export default {
     data() {
         return {
             minInterval: MIN_INTERVAL_SECOND,
-            maxInterval: MAX_INTERVAL_SECOND,
+            pingPerRequestTimeoutMax: PING_PER_REQUEST_TIMEOUT_MAX,
             processing: false,
             monitor: {
                 notificationIDList: {},
@@ -3332,7 +3483,7 @@ export default {
         },
 
         timeoutMax() {
-            return this.monitor.type === "ping" ? 60 : undefined;
+            return this.monitor.type === "ping" ? PING_GLOBAL_TIMEOUT_MAX : undefined;
         },
 
         defaultFriendlyName() {
@@ -3495,11 +3646,11 @@ message HealthCheckResponse {
         },
 
         // Filter result by active state, weight and alphabetical
-        // Only return groups which arent't itself and one of its decendants
+        // Only return groups which arent't itself and one of its descendants
         sortedGroupMonitorList() {
             let result = Object.values(this.$root.monitorList);
 
-            // Only groups, not itself, not a decendant
+            // Only groups, not itself, not a descendant
             result = result.filter(
                 (monitor) =>
                     monitor.type === "group" &&
@@ -3721,14 +3872,29 @@ message HealthCheckResponse {
                 }
             }
 
+            // NTP servers may rate-limit frequent queries; default to 5 minutes
+            if (this.monitor.type === "ntp" && (oldType || this.isAdd)) {
+                this.monitor.interval = 300;
+            }
+
             // Set default port for DNS if not already defined
-            if (!this.monitor.port || this.monitor.port === "53" || this.monitor.port === "1812") {
+            if (
+                !this.monitor.port ||
+                this.monitor.port === "53" ||
+                this.monitor.port === "1812" ||
+                this.monitor.port === "123" ||
+                this.monitor.port === "22"
+            ) {
                 if (this.monitor.type === "dns") {
                     this.monitor.port = "53";
                 } else if (this.monitor.type === "radius") {
                     this.monitor.port = "1812";
                 } else if (this.monitor.type === "snmp") {
                     this.monitor.port = "161";
+                } else if (this.monitor.type === "ntp") {
+                    this.monitor.port = "123";
+                } else if (this.monitor.type === "sftp") {
+                    this.monitor.port = "22";
                 } else if (this.monitor.type === "globalping" && this.monitor.subtype === "ping") {
                     this.monitor.port = "80";
                 } else {
@@ -4049,6 +4215,10 @@ message HealthCheckResponse {
             this.monitor.rabbitmqNodes.push(newNode);
         },
 
+        addAcceptedStatusCode(newCode) {
+            this.monitor.accepted_statuscodes.push(newCode);
+        },
+
         /**
          * Validate form input
          * @returns {boolean} Is the form input valid?
@@ -4111,7 +4281,7 @@ message HealthCheckResponse {
 
             // Validate hostname field input for various monitors
             if (
-                ["dns", "port", "ping", "steam", "gamedig", "radius", "tailscale-ping", "smtp", "snmp"].includes(
+                ["dns", "port", "ping", "steam", "gamedig", "radius", "tailscale-ping", "smtp", "snmp", "ntp"].includes(
                     this.monitor.type
                 ) &&
                 this.monitor.hostname
